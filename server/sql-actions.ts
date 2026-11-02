@@ -116,7 +116,7 @@ export async function action(method: string, args: any[], a: Actor) {
     }
     const lookup=method.match(/^(save|add|update|delete)(Units?|Categories|Category)$/);
     if (lookup) {
-      permit(a,['developer','admin','pharmacist']);
+      permit(a,['developer','admin']);
       const col=/Unit/.test(method)?'item_units':'therapeutic_categories';
       let values=(await list(col,tx)).map(x=>x.name || x.id), deleted:string[]=[];
       const op=lookup[1];

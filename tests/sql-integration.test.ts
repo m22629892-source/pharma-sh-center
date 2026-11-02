@@ -16,7 +16,7 @@ test('SQL HTTP: authentication, atomic concurrent dispense, idempotency, dose lo
  }
  const hash=await passwordHash('Test-only-password-2026');
  await atomic(async tx=>{
-  for(const [id,role] of [['test-admin','developer'],['test-tech','technician']]) {
+  for(const [id,role] of [['test-admin','developer'],['test-tech','technician'],['test-pharmacist','pharmacist'],['test-manager','admin']]) {
    await put('users',{id,uid:id,email:id+'@example.test',name:id,role},tx);
    await (await req(tx)).input('id',sql.NVarChar(450),id).input('hash',sql.NVarChar(512),hash).query('UPDATE dbo.Users SET PasswordHash=@hash,RequiresPasswordReset=0 WHERE Id=@id');
   }
@@ -50,8 +50,21 @@ test('SQL HTTP: authentication, atomic concurrent dispense, idempotency, dose lo
   assert.equal((await api('/action/updateUser',{args:[{uid:'test-tech',role:'developer'}]},tech.cookie)).status,403);
   assert.equal((await api('/action/fetchCollectionRaw',{args:['users']},tech.cookie)).status,403);
   assert.equal((await api('/action/deleteMedicine',{args:['test-med']},tech.cookie)).status,403);
+  const pharmacist=await api('/login',{email:'test-pharmacist@example.test',password:'Test-only-password-2026'});
+  const lookupMutations:Record<string,any[]>={addUnit:['test-unit'],updateUnit:['old','new'],deleteUnit:['old'],saveUnits:[['changed']],addCategory:['test-category'],updateCategory:['old','new'],deleteCategory:['old'],saveCategories:[['changed']]};
+  for(const deniedCookie of [tech.cookie,pharmacist.cookie]) {
+    for(const [method,args] of Object.entries(lookupMutations)) assert.equal((await api('/action/'+method,{args},deniedCookie)).status,403,method+' must require a manager');
+    assert.equal((await api('/action/fetchUnits',{args:[]},deniedCookie)).status,200);
+    assert.equal((await api('/action/fetchCategories',{args:[]},deniedCookie)).status,200);
+  }
+  assert.equal((await list('item_units')).length,0);assert.equal((await list('therapeutic_categories')).length,0);
+  const manager=await api('/login',{email:'test-manager@example.test',password:'Test-only-password-2026'});
+  for(const allowedCookie of [cookie,manager.cookie]) {
+    assert.equal((await api('/action/saveUnits',{args:[['test-unit']]},allowedCookie)).status,200);
+    assert.equal((await api('/action/saveCategories',{args:[['test-category']]},allowedCookie)).status,200);
+  }
   const backup=await api('/action/createFullBackup',{args:[]},cookie);
-  assert.equal(backup.status,200);assert.ok(backup.data.collections.doctors);assert.equal(backup.data.collections.users.length,2);
+  assert.equal(backup.status,200);assert.ok(backup.data.collections.doctors);assert.equal(backup.data.collections.users.length,4);
   assert.ok(backup.data.collections.users.every((u:any)=>!u.password && !u.PasswordHash));
   await api('/logout',{},cookie);assert.equal((await api('/me',undefined,cookie)).status,401);
   // Explicit plaintext mode exercises the actual API and database column.
