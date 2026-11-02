@@ -1,0 +1,46 @@
+name: Windows 11 LAN server package
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:sql
+      - name: Parse Windows PowerShell scripts
+        shell: powershell
+        run: |
+          Get-ChildItem windows -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { $errors | Format-List; throw "PowerShell syntax error in $($_.Name)" }
+          }
+      - name: Build production frontend, backend and portable Node runtime
+        run: npm run package:windows
+      - name: Exercise packaged Windows runtime without private database access
+        run: node scripts/windows-smoke.mjs
+      - name: Package inventory
+        shell: powershell
+        run: |
+          $root = (Resolve-Path release/PharmaSHCenter-Windows11-Server).Path
+          if (Test-Path "$root/.env") { throw 'Live settings must never be distributed.' }
+          Get-ChildItem $root -Recurse -File | ForEach-Object {
+            $relative = $_.FullName.Substring($root.Length + 1)
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $relative"
+          } | Set-Content "$root/SHA256SUMS.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PharmaSHCenter-Windows11-Server
+          path: release/PharmaSHCenter-Windows11-Server/
+          retention-days: 30
+          if-no-files-found: error
