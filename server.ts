@@ -19,6 +19,25 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  if (process.env.DATA_BACKEND === 'sqlserver') {
+    if (process.env.VITE_DATA_BACKEND !== 'sqlserver') throw new Error('Set VITE_DATA_BACKEND=sqlserver together with DATA_BACKEND=sqlserver.');
+    const { sqlRouter, requireSQLAuth, sqlErrorHandler } = await import('./server/sql-http');
+    app.use('/api/sql', sqlRouter());
+    app.get('/api/sessions/active', requireSQLAuth, async (_req,res,next) => {
+      try {
+        if (!['developer','admin'].includes(res.locals.actor.role)) return void res.sendStatus(403);
+        const { pool } = await import('./server/sql-store');
+        const result = await (await pool()).request().query('SELECT s.UserId AS userId,u.email AS userEmail,u.name AS userName,u.role AS userRole,s.CreatedAt AS loginTime,s.LastSeenAt AS lastHeartbeat FROM dbo.ServerAuthSessions s JOIN dbo.Users u ON u.Id=s.UserId WHERE s.ExpiresAt>SYSUTCDATETIME()');
+        res.json({sessions:result.recordset});
+      } catch(error) { next(error); }
+    });
+    app.use('/api/sessions', (_req,res) => res.status(410).json({error:'Use SQL session endpoints.'}));
+    app.use('/api', requireSQLAuth, (req: express.Request,res: express.Response,next: express.NextFunction) => {
+      if ((req.path.startsWith('/notifications/') || (req.path.startsWith('/ai/') && res.locals.actor.role === 'technician')) && !['developer','admin'].includes(res.locals.actor.role)) return void res.sendStatus(403);
+      next();
+    }, sqlErrorHandler);
+  }
+
   // API 1: Fetch Client IP Address for sessions logging
   app.get('/api/ip', (req, res) => {
     try {
@@ -1529,7 +1548,7 @@ ${hasTremors ? `* 🫨 **تحذير ارتعاش عضلي بالأطراف:** ت
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, process.env.HOST || (process.env.DATA_BACKEND === 'sqlserver' ? '127.0.0.1' : '0.0.0.0'), () => {
     console.log(`Care Pharmacy Full-Stack Server running at http://localhost:${PORT}`);
   });
 }

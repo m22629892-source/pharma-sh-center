@@ -1,0 +1,41 @@
+name: SQL backend checks
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: TestOnly-Pharma2026!Strong
+        ports:
+          - 1433:1433
+    env:
+      DB_SERVER: 127.0.0.1
+      DB_PORT: 1433
+      DB_DATABASE: PharmaSHCenter
+      DB_USER: sa
+      DB_PASSWORD: TestOnly-Pharma2026!Strong
+      DB_TDS_VERSION: 7_3_A
+      DB_ENCRYPT: 'false'
+      VITE_DATA_BACKEND: sqlserver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:sql
+      - run: npm run build
+      - name: Prepare disposable SQL database
+        run: node --import tsx scripts/sql-ci-setup.ts
+      - name: Exercise HTTP and SQL transactions (synthetic data only)
+        run: npm run test:sql
+        env:
+          SQL_INTEGRATION: '1'

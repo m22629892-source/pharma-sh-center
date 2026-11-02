@@ -1,0 +1,217 @@
+{
+  "medicines": {
+    "table": "Medicines",
+    "fields": {
+      "commercialName": "nvarchar(500)",
+      "commercialNameAr": "nvarchar(500)",
+      "commercialNameEn": "nvarchar(500)",
+      "scientificName": "nvarchar(500)",
+      "quantity": "decimal(19,4)",
+      "entryDate": "date",
+      "expiryDate": "date",
+      "price": "decimal(19,4)",
+      "unit": "nvarchar(500)",
+      "category": "nvarchar(500)",
+      "createdAt": "datetimeoffset(3)",
+      "updatedAt": "datetimeoffset(3)",
+      "manufacturer": "nvarchar(500)",
+      "isControlled": "bit"
+    }
+  },
+  "dispense_records": {
+    "table": "DispenseRecords",
+    "fields": {
+      "medicineId": "nvarchar(500)",
+      "medicineName": "nvarchar(500)",
+      "medicineNameEn": "nvarchar(500)",
+      "residentId": "nvarchar(500)",
+      "residentName": "nvarchar(500)",
+      "residentNameEn": "nvarchar(500)",
+      "quantityDispensed": "decimal(19,4)",
+      "unit": "nvarchar(500)",
+      "totalPrice": "decimal(19,4)",
+      "actualQuantityDispensed": "decimal(19,4)",
+      "dispensedBy": "nvarchar(500)",
+      "dispensedById": "nvarchar(500)",
+      "dispensedAt": "datetimeoffset(3)",
+      "doctorId": "nvarchar(500)",
+      "doctorName": "nvarchar(500)",
+      "doctorNameEn": "nvarchar(500)",
+      "doctorSpecialty": "nvarchar(500)"
+    }
+  },
+  "doctors": {
+    "table": "Doctors",
+    "fields": {
+      "nameAr": "nvarchar(500)",
+      "nameEn": "nvarchar(500)",
+      "specialty": "nvarchar(500)",
+      "phone": "nvarchar(500)",
+      "email": "nvarchar(500)",
+      "createdAt": "datetimeoffset(3)",
+      "updatedAt": "datetimeoffset(3)"
+    }
+  },
+  "residents": {
+    "table": "Residents",
+    "fields": {
+      "name": "nvarchar(500)",
+      "nameAr": "nvarchar(500)",
+      "nameEn": "nvarchar(500)",
+      "birthDate": "date",
+      "referralDate": "date",
+      "referralFacility": "nvarchar(500)",
+      "referralReason": "nvarchar(max)",
+      "roomNumber": "nvarchar(500)",
+      "wing": "nvarchar(500)",
+      "nationalId": "nvarchar(500)",
+      "age": "int",
+      "notes": "nvarchar(max)",
+      "allergies": "nvarchar(max)",
+      "bloodGroup": "nvarchar(500)",
+      "attendingPhysician": "nvarchar(500)",
+      "chronicDiseases": "nvarchar(max)",
+      "createdAt": "datetimeoffset(3)",
+      "updatedAt": "datetimeoffset(3)"
+    }
+  },
+  "pharmaceutical_companies": {
+    "table": "PharmaceuticalCompanies",
+    "fields": {
+      "name": "nvarchar(500)",
+      "country": "nvarchar(500)",
+      "contactPerson": "nvarchar(500)",
+      "phone": "nvarchar(500)",
+      "email": "nvarchar(500)",
+      "notes": "nvarchar(max)"
+    }
+  },
+  "behavior_logs": {
+    "table": "BehaviorLogs",
+    "fields": {
+      "residentId": "nvarchar(500)",
+      "residentName": "nvarchar(500)",
+      "loggedAt": "datetimeoffset(3)",
+      "loggedBy": "nvarchar(500)",
+      "behaviorRating": "nvarchar(500)",
+      "severity": "nvarchar(500)",
+      "recentMedicineId": "nvarchar(500)",
+      "recentMedicineName": "nvarchar(500)",
+      "notes": "nvarchar(max)"
+    }
+  },
+  "stock_audit_logs": {
+    "table": "StockAuditLogs",
+    "fields": {
+      "medicineId": "nvarchar(500)",
+      "medicineName": "nvarchar(500)",
+      "actionType": "nvarchar(500)",
+      "quantityChanged": "decimal(19,4)",
+      "previousQuantity": "decimal(19,4)",
+      "newQuantity": "decimal(19,4)",
+      "performedByName": "nvarchar(500)",
+      "performedByEmail": "nvarchar(500)",
+      "performedById": "nvarchar(500)",
+      "notes": "nvarchar(max)",
+      "timestamp": "datetimeoffset(3)"
+    }
+  },
+  "users": {
+    "table": "Users",
+    "fields": {
+      "uid": "nvarchar(500)",
+      "name": "nvarchar(500)",
+      "email": "nvarchar(500)",
+      "role": "nvarchar(500)",
+      "phone": "nvarchar(500)"
+    }
+  },
+  "user_sessions": {
+    "table": "UserSessions",
+    "fields": {
+      "userId": "nvarchar(500)",
+      "name": "nvarchar(500)",
+      "email": "nvarchar(500)",
+      "ipAddress": "nvarchar(500)",
+      "deviceToken": "nvarchar(max)",
+      "loginTime": "datetimeoffset(3)"
+    }
+  },
+  "active_sessions": {
+    "table": "ActiveSessions",
+    "fields": {
+      "sessionId": "nvarchar(500)",
+      "userId": "nvarchar(500)",
+      "userName": "nvarchar(500)",
+      "userEmail": "nvarchar(500)",
+      "userRole": "nvarchar(500)",
+      "ipAddress": "nvarchar(500)",
+      "userAgent": "nvarchar(max)",
+      "loginTime": "datetimeoffset(3)",
+      "lastHeartbeat": "datetimeoffset(3)"
+    }
+  },
+  "security_settings": {
+    "table": "SecuritySettings",
+    "fields": {
+      "emailEnabled": "bit",
+      "appsScriptUrl": "nvarchar(max)",
+      "notificationEmail": "nvarchar(max)",
+      "whatsAppEnabled": "bit",
+      "whatsAppMode": "nvarchar(500)",
+      "whatsAppNumber": "nvarchar(max)",
+      "callMeBotApiKey": "nvarchar(max)",
+      "ultraMsgInstance": "nvarchar(500)",
+      "ultraMsgToken": "nvarchar(max)",
+      "waPilotBaseUrl": "nvarchar(max)",
+      "waPilotApiKey": "nvarchar(max)",
+      "waPilotType": "nvarchar(500)",
+      "waPilotDevice": "nvarchar(500)",
+      "waPilotPath": "nvarchar(max)",
+      "alertDays": "int",
+      "updatedAt": "datetimeoffset(3)",
+      "updatedBy": "nvarchar(500)"
+    }
+  },
+  "settings": {
+    "table": "Settings",
+    "fields": {}
+  },
+  "system_settings": {
+    "table": "SystemSettings",
+    "fields": {}
+  },
+  "item_units": {
+    "table": "ItemUnits",
+    "fields": {
+      "name": "nvarchar(500)",
+      "createdAt": "datetimeoffset(3)",
+      "updatedAt": "datetimeoffset(3)"
+    }
+  },
+  "therapeutic_categories": {
+    "table": "TherapeuticCategories",
+    "fields": {
+      "name": "nvarchar(500)",
+      "createdAt": "datetimeoffset(3)",
+      "updatedAt": "datetimeoffset(3)"
+    }
+  },
+  "custom_side_effects": {
+    "table": "CustomSideEffects",
+    "fields": {
+      "key": "nvarchar(500)",
+      "label": "nvarchar(500)"
+    }
+  },
+  "batches": {
+    "table": "Batches",
+    "fields": {
+      "batchNumber": "nvarchar(500)",
+      "medicineId": "nvarchar(500)",
+      "quantity": "decimal(19,4)",
+      "expiryDate": "date",
+      "entryDate": "date"
+    }
+  }
+}
