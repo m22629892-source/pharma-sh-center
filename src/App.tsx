@@ -986,6 +986,8 @@ export default function App() {
     }
   });
 
+  const canManageLookups = currentUser?.role === 'developer' || currentUser?.role === 'admin';
+
   // Login Screen states
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -1356,8 +1358,8 @@ export default function App() {
 
   // Unit CRUD handlers with Database (Firestore) persistence
   const handleCreateUnit = async (name: string) => {
-    if (currentUser?.role === 'technician') {
-      showToast(text('ليس لديك صلاحية إضافة وحدات دوائية جديدة (مقتصرة على الصيدلي القانوني ومدير النظام).', 'Pharmacy technicians cannot add new units.'), 'error');
+    if (!canManageLookups) {
+      showToast(text('ليس لديك صلاحية إضافة وحدات دوائية جديدة (مقتصرة على المبرمج ومدير النظام).', 'Only developers and system admins can add units.'), 'error');
       return;
     }
     const cleaned = name.trim();
@@ -1381,8 +1383,8 @@ export default function App() {
   };
 
   const handleUpdateUnit = async (index: number, newName: string) => {
-    if (currentUser?.role === 'technician') {
-      showToast(text('ليس لديك صلاحية تعديل الوحدات الدوائية (مقتصرة على الصيدلي القانوني ومدير النظام).', 'Pharmacy technicians cannot edit units.'), 'error');
+    if (!canManageLookups) {
+      showToast(text('ليس لديك صلاحية تعديل الوحدات الدوائية (مقتصرة على المبرمج ومدير النظام).', 'Only developers and system admins can edit units.'), 'error');
       return;
     }
     const cleaned = newName.trim();
@@ -1418,8 +1420,8 @@ export default function App() {
   };
 
   const handleDeleteUnit = async (index: number) => {
-    if (currentUser?.role === 'technician') {
-      showToast(text('ليس لديك صلاحية حذف الوحدات الدوائية (مقتصرة على الصيدلي القانوني ومدير النظام).', 'Pharmacy technicians cannot delete units.'), 'error');
+    if (!canManageLookups) {
+      showToast(text('ليس لديك صلاحية حذف الوحدات الدوائية (مقتصرة على المبرمج ومدير النظام).', 'Only developers and system admins can delete units.'), 'error');
       return;
     }
     if (customUnits.length <= 1) {
@@ -1454,8 +1456,8 @@ export default function App() {
 
   // Category CRUD handlers with Database (Firestore) persistence
   const handleCreateCategory = async (name: string) => {
-    if (currentUser?.role === 'technician') {
-      showToast(text('ليس لديك صلاحية إضافة فئات علاجية جديدة (مقتصرة على الصيدلي القانوني ومدير النظام).', 'Pharmacy technicians cannot add categories.'), 'error');
+    if (!canManageLookups) {
+      showToast(text('ليس لديك صلاحية إضافة فئات علاجية جديدة (مقتصرة على المبرمج ومدير النظام).', 'Only developers and system admins can add categories.'), 'error');
       return;
     }
     const cleaned = name.trim();
@@ -1479,8 +1481,8 @@ export default function App() {
   };
 
   const handleUpdateCategory = async (index: number, newName: string) => {
-    if (currentUser?.role === 'technician') {
-      showToast(text('ليس لديك صلاحية تعديل الفئات العلاجية (مقتصرة على الصيدلي القانوني ومدير النظام).', 'Pharmacy technicians cannot edit categories.'), 'error');
+    if (!canManageLookups) {
+      showToast(text('ليس لديك صلاحية تعديل الفئات العلاجية (مقتصرة على المبرمج ومدير النظام).', 'Only developers and system admins can edit categories.'), 'error');
       return;
     }
     const cleaned = newName.trim();
@@ -1516,8 +1518,8 @@ export default function App() {
   };
 
   const handleDeleteCategory = async (index: number) => {
-    if (currentUser?.role === 'technician') {
-      showToast(text('ليس لديك صلاحية حذف الفئات العلاجية (مقتصرة على الصيدلي القانوني ومدير النظام).', 'Pharmacy technicians cannot delete categories.'), 'error');
+    if (!canManageLookups) {
+      showToast(text('ليس لديك صلاحية حذف الفئات العلاجية (مقتصرة على المبرمج ومدير النظام).', 'Only developers and system admins can delete categories.'), 'error');
       return;
     }
     if (customCategories.length <= 1) {
@@ -2618,30 +2620,7 @@ export default function App() {
     if (isSQL && currentUser) loadAllData().catch(() => {});
   }, [currentUser?.uid]);
 
-  // Universal Database Cloud Sync Handler (Accessible to ALL users across the entire system)
-  const [isSyncingDb, setIsSyncingDb] = useState<boolean>(false);
-  const handleManualSyncDb = async () => {
-    if (isSyncingDb) return;
-    setIsSyncingDb(true);
-    try {
-      await loadAllData();
-      showToast(
-        lang === 'ar' 
-          ? `تمت مزامنة وتحديث قاعدة البيانات سحابياً بنجاح! 🔄 (${medicines.length} صنف دواء مسجل)` 
-          : `Database synchronized successfully with Cloud! 🔄 (${medicines.length} items loaded)`, 
-        'success'
-      );
-    } catch (err) {
-      showToast(
-        lang === 'ar' 
-          ? 'تعذر إتمام المزامنة السحابية. يرجى التحقق من اتصال الإنترنت.' 
-          : 'Cloud sync failed. Please check network connection.', 
-        'error'
-      );
-    } finally {
-      setIsSyncingDb(false);
-    }
-  };
+
 
   useEffect(() => {
     if (isSQL) { setLoading(false); return; }
@@ -5733,24 +5712,8 @@ export default function App() {
             <span className="font-sans font-bold">{lang === 'ar' ? "EN" : "عربي"}</span>
           </button>
 
-          {/* 🔄 زر مزامنة قاعدة البيانات سحابياً (متاح لجميع المستخدمين بلا استثناء) */}
-          <button
-            type="button"
-            onClick={handleManualSyncDb}
-            disabled={isSyncingDb}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-xs shrink-0 ${
-              isSyncingDb
-                ? 'border-teal-400 bg-teal-600/30 text-teal-200 ring-2 ring-teal-400/30'
-                : darkMode
-                  ? 'border-teal-500/30 bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 ring-1 ring-teal-500/20'
-                  : 'border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 ring-1 ring-teal-200'
-            }`}
-            title={lang === 'ar' ? 'مزامنة وتحديث قاعدة البيانات سحابياً فوراً (متاح لجميع المستخدمين)' : 'Synchronize Database with Cloud Now (For all users)'}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-teal-400 shrink-0 ${isSyncingDb ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline font-bold">{lang === 'ar' ? 'مزامنة قاعدة البيانات 🔄' : 'Sync DB 🔄'}</span>
-            <span className="sm:hidden font-bold">{lang === 'ar' ? 'مزامنة 🔄' : 'Sync 🔄'}</span>
-          </button>
+
+          {/* Manual database synchronization removed. */}
 
           {/* ⚡ Power BI Smart Action Group Dropdown: Groups AI Tools, User Utilities & Quick Actions without horizontal overflow */}
           <div className="relative" ref={actionGroupRef}>
@@ -5878,23 +5841,7 @@ export default function App() {
                   </div>
 
                   {/* Universal Database Cloud Sync Button (متاح لجميع المستخدمين بلا استثناء) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowActionGroup(false);
-                      handleManualSyncDb();
-                    }}
-                    disabled={isSyncingDb}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition text-right cursor-pointer ${
-                      darkMode ? 'hover:bg-slate-800 text-teal-300' : 'hover:bg-teal-50 text-teal-800'
-                    }`}
-                  >
-                    <RefreshCw className={`w-4 h-4 text-teal-400 shrink-0 ${isSyncingDb ? 'animate-spin' : ''}`} />
-                    <div className="flex flex-col text-right">
-                      <span>{lang === 'ar' ? 'مزامنة قاعدة البيانات سحابياً 🔄' : 'Sync Database with Cloud 🔄'}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">{lang === 'ar' ? 'جلب أحدث التعديلات والسجلات فوراً' : 'Instant live update from Firestore'}</span>
-                    </div>
-                  </button>
+                  {/* Manual database synchronization removed. */}
 
                   {/* Quick Dispense Button for all authenticated roles */}
                   <button
@@ -6270,23 +6217,7 @@ export default function App() {
 
                 <div className="space-y-1 pt-1">
                   {/* Universal Database Cloud Sync Button (متاح لجميع المستخدمين بلا استثناء) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSideDrawerOpen(false);
-                      handleManualSyncDb();
-                    }}
-                    disabled={isSyncingDb}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition text-right cursor-pointer border ${
-                      darkMode ? 'bg-teal-500/10 border-teal-500/25 hover:bg-teal-500/20 text-teal-300' : 'bg-teal-50 border-teal-200 hover:bg-teal-100 text-teal-800'
-                    }`}
-                  >
-                    <RefreshCw className={`w-4 h-4 text-teal-400 shrink-0 ${isSyncingDb ? 'animate-spin' : ''}`} />
-                    <div className="flex flex-col text-right">
-                      <span>{lang === 'ar' ? 'مزامنة قاعدة البيانات سحابياً 🔄' : 'Sync Database with Cloud 🔄'}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">{lang === 'ar' ? 'تحديث ومزامنة كافة السجلات فوراً' : 'Instant live update from Firestore'}</span>
-                    </div>
-                  </button>
+                  {/* Manual database synchronization removed. */}
 
                   <button
                     type="button"
@@ -6631,19 +6562,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleManualSyncDb}
-              disabled={isSyncingDb}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-bold transition cursor-pointer hover:scale-105 active:scale-95 shadow-xs ${
-                darkMode ? 'bg-teal-500/15 border-teal-500/40 text-teal-300 hover:bg-teal-500/25' : 'bg-teal-50 border-teal-300 text-teal-800 hover:bg-teal-100'
-              }`}
-              title={lang === 'ar' ? 'مزامنة وتحديث قاعدة البيانات سحابياً فوراً (متاح للجميع)' : 'Sync Database with Cloud Now'}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-teal-400 shrink-0 ${isSyncingDb ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{lang === 'ar' ? 'مزامنة الداتابيز 🔄' : 'Sync DB 🔄'}</span>
-              <span className="sm:hidden">{lang === 'ar' ? 'مزامنة 🔄' : 'Sync 🔄'}</span>
-            </button>
+            {/* Manual database synchronization removed. */}
 
             <button
               type="button"
@@ -7997,7 +7916,7 @@ export default function App() {
                       }`}>
                         {currentUser?.role !== 'technician' && (
                           <>
-                            <button
+                            {canManageLookups && (<button
                               type="button"
                               onClick={() => {
                                 setUnitSearchQuery('');
@@ -8008,9 +7927,9 @@ export default function App() {
                             >
                               <Package className="w-3.5 h-3.5 shrink-0" />
                               <span>{text('إدارة الوحدات 📦', 'Manage Units 📦')}</span>
-                            </button>
+                            </button>)}
 
-                            <button
+                            {canManageLookups && ((canManageLookups ? (<button
                               type="button"
                               onClick={() => {
                                 setEditingCategoryIdx(null);
@@ -8021,7 +7940,7 @@ export default function App() {
                             >
                               <Activity className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
                               <span>{text('إدارة الفئات 🏷️', 'Manage Classes 🏷️')}</span>
-                            </button>
+                            </button>) : null))}
                           </>
                         )}
 
@@ -8909,7 +8828,7 @@ export default function App() {
                 </div>
 
                 {/* Add New Unit & Presets Panel */}
-                <div className={`p-6 rounded-3xl border space-y-4 ${darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                {canManageLookups && (<div className={`p-6 rounded-3xl border space-y-4 ${darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                   <h3 className="text-sm font-black text-slate-200 flex items-center gap-2">
                     <Plus className="w-4 h-4 text-teal-400" />
                     <span>{text('إضافة وحدة قياس جديدة إلى قاعدة البيانات:', 'Add New Measurement Unit to Database:')}</span>
@@ -8962,7 +8881,7 @@ export default function App() {
                         ))}
                     </div>
                   </div>
-                </div>
+                </div>)}
 
                 {/* Units List & Search */}
                 <div className={`p-6 rounded-3xl border space-y-4 ${darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
@@ -9007,7 +8926,7 @@ export default function App() {
                             className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition ${darkMode ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              {editingUnitIdx === originalIdx ? (
+                              {canManageLookups && editingUnitIdx === originalIdx ? (
                                 <div className="flex items-center gap-1.5 flex-1">
                                   <input
                                     type="text"
@@ -9020,22 +8939,22 @@ export default function App() {
                                       else if (e.key === 'Escape') setEditingUnitIdx(null);
                                     }}
                                   />
-                                  <button
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => handleUpdateUnit(originalIdx, editingUnitVal)}
                                     className="p-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer"
                                     title={text('حفظ التعديل', 'Save')}
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
-                                  </button>
-                                  <button
+                                  </button>)}
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => setEditingUnitIdx(null)}
                                     className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs transition cursor-pointer"
                                     title={text('إلغاء', 'Cancel')}
                                   >
                                     <X className="w-4 h-4" />
-                                  </button>
+                                  </button>)}
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2.5">
@@ -9051,7 +8970,7 @@ export default function App() {
 
                               {editingUnitIdx !== originalIdx && (
                                 <div className="flex items-center gap-1 shrink-0">
-                                  <button
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => {
                                       setEditingUnitIdx(originalIdx);
@@ -9061,15 +8980,15 @@ export default function App() {
                                     title={text('تعديل اسم الوحدة', 'Edit Unit Name')}
                                   >
                                     <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
+                                  </button>)}
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => handleDeleteUnit(originalIdx)}
                                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                                     title={text('حذف الوحدة', 'Delete Unit')}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  </button>)}
                                 </div>
                               )}
                             </div>
@@ -9124,7 +9043,7 @@ export default function App() {
                 </div>
 
                 {/* Add New Category Panel */}
-                <div className={`p-6 rounded-3xl border space-y-4 ${darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                {canManageLookups && (<div className={`p-6 rounded-3xl border space-y-4 ${darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                   <h3 className="text-sm font-black text-slate-200 flex items-center gap-2">
                     <Plus className="w-4 h-4 text-indigo-400" />
                     <span>{text('إضافة فئة علاجية جديدة إلى قاعدة البيانات:', 'Add New Therapeutic Category to Database:')}</span>
@@ -9155,7 +9074,7 @@ export default function App() {
                       <span>{text('إضافة الفئة +', 'Add Category +')}</span>
                     </button>
                   </div>
-                </div>
+                </div>)}
 
                 {/* Categories Table / Cards */}
                 <div className={`p-6 rounded-3xl border space-y-4 ${darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
@@ -9176,7 +9095,7 @@ export default function App() {
                           className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition ${darkMode ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            {editingCategoryIdx === idx ? (
+                            {canManageLookups && editingCategoryIdx === idx ? (
                               <div className="flex items-center gap-1.5 flex-1">
                                 <input
                                   type="text"
@@ -9189,22 +9108,22 @@ export default function App() {
                                     else if (e.key === 'Escape') setEditingCategoryIdx(null);
                                   }}
                                 />
-                                <button
+                                {canManageLookups && (<button
                                   type="button"
                                   onClick={() => handleUpdateCategory(idx, editingCategoryVal)}
                                   className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer"
                                   title={text('حفظ', 'Save')}
                                 >
                                   <CheckCircle2 className="w-4 h-4" />
-                                </button>
-                                <button
+                                </button>)}
+                                {canManageLookups && (<button
                                   type="button"
                                   onClick={() => setEditingCategoryIdx(null)}
                                   className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs transition cursor-pointer"
                                   title={text('إلغاء', 'Cancel')}
                                 >
                                   <X className="w-4 h-4" />
-                                </button>
+                                </button>)}
                               </div>
                             ) : (
                               <div className="flex items-center gap-2.5">
@@ -9220,7 +9139,7 @@ export default function App() {
 
                             {editingCategoryIdx !== idx && (
                               <div className="flex items-center gap-1 shrink-0">
-                                <button
+                                {canManageLookups && (<button
                                   type="button"
                                   onClick={() => {
                                     setEditingCategoryIdx(idx);
@@ -9230,15 +9149,15 @@ export default function App() {
                                   title={text('تعديل اسم الفئة', 'Edit Class Name')}
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
+                                </button>)}
+                                {canManageLookups && (<button
                                   type="button"
                                   onClick={() => handleDeleteCategory(idx)}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                                   title={text('حذف الفئة', 'Delete Class')}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                </button>)}
                               </div>
                             )}
                           </div>
@@ -9767,15 +9686,7 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleManualSyncDb}
-                        disabled={isSyncingDb}
-                        className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0 hover:scale-105 active:scale-95 disabled:opacity-50"
-                      >
-                        <RefreshCw className={`w-4 h-4 ${isSyncingDb ? 'animate-spin' : ''}`} />
-                        <span>{text('تحديث البيانات 🔄', 'Refresh data 🔄')}</span>
-                      </button>
+                      {/* Manual database synchronization removed. */}
 
                       {/* Developer Only: Backup and Restore Buttons */}
                       {currentUser?.role === 'developer' && (
@@ -15453,14 +15364,14 @@ export default function App() {
                           <div className="flex items-center justify-between mb-1">
                             <label className="block text-slate-400">{text('الوحدة *', 'Unit *')}</label>
                             {currentUser?.role !== 'technician' && (
-                              <button
+                              (canManageLookups ? (<button
                                 type="button"
                                 onClick={() => setShowManageUnitsModal(true)}
                                 className="text-[10px] text-teal-400 hover:text-teal-300 font-bold hover:underline cursor-pointer flex items-center gap-0.5"
                                 title={text('إضافة أو تعديل أو حذف الوحدات', 'Add, Edit, or Delete Units')}
                               >
                                 <span>⚙️ {text('إدارة الوحدات', 'Manage Units')}</span>
-                              </button>
+                              </button>) : null)
                             )}
                           </div>
                           <select
@@ -15507,14 +15418,14 @@ export default function App() {
                           <div className="flex items-center justify-between mb-1">
                             <label className="block text-slate-400">{text('الفئة العلاجية *', 'Therapeutic Category *')}</label>
                             {currentUser?.role !== 'technician' && (
-                              <button
+                              (canManageLookups ? (<button
                                 type="button"
                                 onClick={() => setShowManageCategoriesModal(true)}
                                 className="text-[10px] text-teal-400 hover:text-teal-300 font-bold hover:underline cursor-pointer flex items-center gap-0.5"
                                 title={text('إضافة أو تعديل أو حذف الفئات العلاجية', 'Add, Edit, or Delete Categories')}
                               >
                                 <span>⚙️ {text('إدارة الفئات', 'Manage Classes')}</span>
-                              </button>
+                              </button>) : null)
                             )}
                           </div>
                           <select
@@ -15701,14 +15612,14 @@ export default function App() {
                           <div className="flex items-center justify-between mb-1">
                             <label className="block text-slate-400">{text('الوحدة *', 'Unit *')}</label>
                             {currentUser?.role !== 'technician' && (
-                              <button
+                              (canManageLookups ? (<button
                                 type="button"
                                 onClick={() => setShowManageUnitsModal(true)}
                                 className="text-[10px] text-teal-400 hover:text-teal-300 font-bold hover:underline cursor-pointer flex items-center gap-0.5"
                                 title={text('إضافة أو تعديل أو حذف الوحدات', 'Add, Edit, or Delete Units')}
                               >
                                 <span>⚙️ {text('إدارة الوحدات', 'Manage Units')}</span>
-                              </button>
+                              </button>) : null)
                             )}
                           </div>
                           <select
@@ -15755,14 +15666,14 @@ export default function App() {
                           <div className="flex items-center justify-between mb-1">
                             <label className="block text-slate-400">{text('الفئة العلاجية *', 'Therapeutic Category *')}</label>
                             {currentUser?.role !== 'technician' && (
-                              <button
+                              (canManageLookups ? (<button
                                 type="button"
                                 onClick={() => setShowManageCategoriesModal(true)}
                                 className="text-[10px] text-teal-400 hover:text-teal-300 font-bold hover:underline cursor-pointer flex items-center gap-0.5"
                                 title={text('إضافة أو تعديل أو حذف الفئات العلاجية', 'Add, Edit, or Delete Categories')}
                               >
                                 <span>⚙️ {text('إدارة الفئات', 'Manage Classes')}</span>
-                              </button>
+                              </button>) : null)
                             )}
                           </div>
                           <select
@@ -16602,16 +16513,16 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Technician Permission Notice if role === technician */}
-                  {currentUser?.role === 'technician' ? (
+                  {/* Lookup management is restricted to developers and system admins. */}
+                  {!canManageLookups ? (
                     <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
                       <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
                       <div className="space-y-0.5">
                         <strong className="block font-bold">
-                          {text('صلاحيات القراءة والعرض فقط (فني صيدلي)', 'Read-Only Permission (Pharmacy Technician)')}
+                          {text('صلاحيات القراءة والعرض فقط', 'Read-Only Permission')}
                         </strong>
                         <p className="text-[11px] opacity-90 leading-relaxed">
-                          {text('نظامياً، تقتصر صلاحيات إضافة وتعديل وحذف الوحدات الدوائية على الصيدلي القانوني ومدير النظام فقط.', 'Adding, editing, and deleting medicine units is strictly reserved for Authorized Pharmacists and Admins.')}
+                          {text('نظامياً، تقتصر صلاحيات إضافة وتعديل وحذف الوحدات الدوائية على المبرمج ومدير النظام فقط.', 'Adding, editing, and deleting medicine units is reserved for developers and system admins.')}
                         </p>
                       </div>
                     </div>
@@ -16635,14 +16546,14 @@ export default function App() {
                           placeholder={text('مثال: قارورة، كبسولة، أمبولة، بخاخ، أنبوب، ملل...', 'e.g. Vial, Capsule, Ampoule, Spray, Tube, ml...')}
                           className={`flex-1 px-3.5 py-2 text-xs rounded-xl border outline-none transition focus:border-teal-500 ${darkMode ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400'}`}
                         />
-                        <button 
+                        {canManageLookups && (<button
                           type="button"
                           onClick={() => handleCreateUnit(newUnitInputModal)}
                           className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 shadow-md shadow-teal-900/25 active:scale-95"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>{text('إضافة وحدة +', 'Add Unit +')}</span>
-                        </button>
+                        </button>)}
                       </div>
 
                       {/* Quick Suggested Presets */}
@@ -16655,7 +16566,7 @@ export default function App() {
                             .filter(preset => !customUnits.includes(preset))
                             .slice(0, 8)
                             .map((preset) => (
-                              <button
+                              (canManageLookups ? (<button
                                 key={preset}
                                 type="button"
                                 onClick={() => handleCreateUnit(preset)}
@@ -16663,7 +16574,7 @@ export default function App() {
                               >
                                 <Plus className="w-2.5 h-2.5" />
                                 <span>{preset}</span>
-                              </button>
+                              </button>) : null)
                             ))}
                         </div>
                       </div>
@@ -16711,7 +16622,7 @@ export default function App() {
                               key={unit + originalIdx}
                               className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition ${darkMode ? 'bg-slate-950/80 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
                             >
-                              {editingUnitIdx === originalIdx && currentUser?.role !== 'technician' ? (
+                              {editingUnitIdx === originalIdx && canManageLookups ? (
                                 <div className="flex items-center gap-1.5 flex-1">
                                   <input 
                                     type="text"
@@ -16727,22 +16638,22 @@ export default function App() {
                                       }
                                     }}
                                   />
-                                  <button 
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => handleUpdateUnit(originalIdx, editingUnitVal)}
                                     className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs cursor-pointer shadow-sm"
                                     title={text('حفظ التعديل', 'Save')}
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button 
+                                  </button>)}
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => setEditingUnitIdx(null)}
                                     className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs cursor-pointer"
                                     title={text('إلغاء', 'Cancel')}
                                   >
                                     <X className="w-3.5 h-3.5" />
-                                  </button>
+                                  </button>)}
                                 </div>
                               ) : (
                                 <>
@@ -16757,7 +16668,7 @@ export default function App() {
                                   </div>
                                   {currentUser?.role !== 'technician' && (
                                     <div className="flex items-center gap-1 shrink-0">
-                                      <button 
+                                      {canManageLookups && (<button
                                         type="button"
                                         onClick={() => {
                                           setEditingUnitIdx(originalIdx);
@@ -16767,15 +16678,15 @@ export default function App() {
                                         title={text('تعديل اسم الوحدة', 'Edit unit')}
                                       >
                                         <Edit2 className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button 
+                                      </button>)}
+                                      {canManageLookups && (<button
                                         type="button"
                                         onClick={() => handleDeleteUnit(originalIdx)}
                                         className="p-1.5 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
                                         title={text('حذف الوحدة', 'Delete unit')}
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
+                                      </button>)}
                                     </div>
                                   )}
                                 </>
@@ -16840,16 +16751,16 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Technician Permission Notice if role === technician */}
-                  {currentUser?.role === 'technician' ? (
+                  {/* Lookup management is restricted to developers and system admins. */}
+                  {!canManageLookups ? (
                     <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
                       <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
                       <div className="space-y-0.5">
                         <strong className="block font-bold">
-                          {text('صلاحيات القراءة والعرض فقط (فني صيدلي)', 'Read-Only Permission (Pharmacy Technician)')}
+                          {text('صلاحيات القراءة والعرض فقط', 'Read-Only Permission')}
                         </strong>
                         <p className="text-[11px] opacity-90 leading-relaxed">
-                          {text('نظامياً، تقتصر صلاحيات إضافة وتعديل وحذف الفئات العلاجية على الصيدلي القانوني ومدير النظام فقط.', 'Adding, editing, and deleting therapeutic classes is strictly reserved for Authorized Pharmacists and Admins.')}
+                          {text('نظامياً، تقتصر صلاحيات إضافة وتعديل وحذف الفئات العلاجية على المبرمج ومدير النظام فقط.', 'Adding, editing, and deleting therapeutic classes is reserved for developers and system admins.')}
                         </p>
                       </div>
                     </div>
@@ -16873,14 +16784,14 @@ export default function App() {
                           placeholder={text('مثال: فيتامينات، مكملات غذائية، مراهم جلدية...', 'e.g. Vitamins, Supplements, Ointments...')}
                           className={`flex-1 px-3 py-2 rounded-xl border text-xs outline-none focus:border-teal-500 ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'}`}
                         />
-                        <button 
+                        {canManageLookups && (<button
                           type="button"
                           onClick={() => handleCreateCategory(newCategoryInputModal)}
                           className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 shadow-md shadow-indigo-900/20"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>{text('إضافة +', 'Add +')}</span>
-                        </button>
+                        </button>)}
                       </div>
                     </div>
                   )}
@@ -16898,7 +16809,7 @@ export default function App() {
                           key={cat + idx}
                           className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition ${darkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
                         >
-                          {editingCategoryIdx === idx && currentUser?.role !== 'technician' ? (
+                          {editingCategoryIdx === idx && canManageLookups ? (
                             <div className="flex items-center gap-1.5 flex-1">
                               <input 
                                 type="text"
@@ -16914,22 +16825,22 @@ export default function App() {
                                   }
                                 }}
                               />
-                              <button 
+                              {canManageLookups && (<button
                                 type="button"
                                 onClick={() => handleUpdateCategory(idx, editingCategoryVal)}
                                 className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs cursor-pointer"
                                 title={text('حفظ التعديل', 'Save')}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button 
+                              </button>)}
+                              {canManageLookups && (<button
                                 type="button"
                                 onClick={() => setEditingCategoryIdx(null)}
                                 className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs cursor-pointer"
                                 title={text('إلغاء', 'Cancel')}
                               >
                                 <X className="w-3.5 h-3.5" />
-                              </button>
+                              </button>)}
                             </div>
                           ) : (
                             <>
@@ -16944,7 +16855,7 @@ export default function App() {
                               </div>
                               {currentUser?.role !== 'technician' && (
                                 <div className="flex items-center gap-1">
-                                  <button 
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => {
                                       setEditingCategoryIdx(idx);
@@ -16954,15 +16865,15 @@ export default function App() {
                                     title={text('تعديل اسم الفئة', 'Edit category')}
                                   >
                                     <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button 
+                                  </button>)}
+                                  {canManageLookups && (<button
                                     type="button"
                                     onClick={() => handleDeleteCategory(idx)}
                                     className="p-1.5 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
                                     title={text('حذف الفئة', 'Delete category')}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  </button>)}
                                 </div>
                               )}
                             </>
