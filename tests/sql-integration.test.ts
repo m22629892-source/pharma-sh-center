@@ -10,7 +10,7 @@ const enabled=process.env.SQL_INTEGRATION==='1';
 // CI uses only synthetic records in a dedicated disposable database.
 test('SQL HTTP: authentication, atomic concurrent dispense, idempotency, dose lock, role enforcement, backup', {skip:!enabled},async()=>{
  const db=await pool();
- for (const name of ['01_schema.sql','04_auth.sql']) {
+ for (const name of ['01_schema.sql','04_auth.sql','05_plaintext_password.sql']) {
   const text=(await fs.readFile(new URL('../sqlserver/'+name,import.meta.url),'utf8')).replace(/^\uFEFF/,'');
   for(const batch of text.split(/^GO\s*$/mi).filter(x=>x.trim()))await db.request().batch(batch);
  }
@@ -54,5 +54,21 @@ test('SQL HTTP: authentication, atomic concurrent dispense, idempotency, dose lo
   assert.equal(backup.status,200);assert.ok(backup.data.collections.doctors);assert.equal(backup.data.collections.users.length,2);
   assert.ok(backup.data.collections.users.every((u:any)=>!u.password && !u.PasswordHash));
   await api('/logout',{},cookie);assert.equal((await api('/me',undefined,cookie)).status,401);
+  // Explicit plaintext mode exercises the actual API and database column.
+  process.env.DB_PASSWORD_MODE='plaintext';
+  await atomic(async tx=>{
+    const { savePassword }=await import('../server/credentials');
+    await savePassword('test-admin','Plain Text 123 ',tx);
+    await (await req(tx)).query("UPDATE dbo.Users SET RequiresPasswordReset=1 WHERE Id=N'test-admin'");
+  });
+  const plainLogin=await api('/login',{email:'test-admin@example.test',password:'Plain Text 123 '});
+  assert.equal(plainLogin.status,200);assert.ok(!JSON.stringify(plainLogin.data).includes('Plain Text'));
+  assert.equal((await api('/me',undefined,plainLogin.cookie)).status,200);
+  assert.equal((await api('/login',{email:'test-admin@example.test',password:'Plain Text 123'})).status,401);
+  const changed=await api('/password',{currentPassword:'Plain Text 123 ',newPassword:'Changed 123'},plainLogin.cookie);
+  assert.equal(changed.status,200);assert.equal((await api('/me',undefined,plainLogin.cookie)).status,401);
+  assert.equal((await api('/login',{email:'test-admin@example.test',password:'Changed 123'})).status,200);
+  assert.equal((await db.request().query("SELECT [password] FROM dbo.Users WHERE Id=N'test-admin'")).recordset[0].password,'Changed 123');
+  delete process.env.DB_PASSWORD_MODE;
  } finally {await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));await db.close();}
 });

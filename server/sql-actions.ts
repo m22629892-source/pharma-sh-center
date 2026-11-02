@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import sql from 'mssql';
 import { Actor, atomic, fail, get, list, put, remove, req, roles, models, validateValue } from './sql-store';
-import { passwordHash } from './passwords';
+import { savePassword } from './credentials';
 export const isManager = (a: Actor) => ['admin','developer'].includes(a.role);
 const permit = (a: Actor, allowed: string[]) => { if (!allowed.includes(a.role)) fail('ليست لديك صلاحية لهذه العملية.',403); };
 const now = () => new Date().toISOString();
@@ -103,11 +103,7 @@ export async function action(method: string, args: any[], a: Actor) {
       const duplicate=await (await req(tx)).input('email',sql.NVarChar(500),email).input('id',sql.NVarChar(450),id).query('SELECT TOP(1) Id FROM dbo.Users WITH (UPDLOCK,HOLDLOCK) WHERE LOWER(LTRIM(RTRIM(email)))=@email AND Id<>@id');
       if (duplicate.recordset.length) fail('البريد الإلكتروني مستخدم بالفعل.',409);
       const data=await put('users',{...old,...input,id,uid:id,email},tx);
-      if (input.password) {
-        if (typeof input.password !== 'string' || input.password.length < 10 || input.password.length > 200) fail('كلمة المرور يجب أن تكون بين 10 و200 حرف.');
-        const hash=await passwordHash(input.password);
-        await (await req(tx)).input('id',sql.NVarChar(450),id).input('hash',sql.NVarChar(512),hash).query('UPDATE dbo.Users SET PasswordHash=@hash,RequiresPasswordReset=0 WHERE Id=@id; DELETE dbo.ServerAuthSessions WHERE UserId=@id;');
-      }
+      if (input.password) await savePassword(id,input.password,tx);
       await audit(tx,a,old?'تعديل حساب مستخدم':'إضافة مستخدم',data); return data;
     }
     if (method==='saveSecuritySettings') {

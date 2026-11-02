@@ -24,7 +24,7 @@ export async function atomic<T>(fn: (tx: sql.Transaction) => Promise<T>) {
 function request(tx?: sql.Transaction) { return tx ? new sql.Request(tx) : new sql.Request(); }
 export async function req(tx?: sql.Transaction) { return tx ? request(tx) : (await pool()).request(); }
 export function safeUser(o: any) {
-  const { password, PasswordHash, RequiresPasswordReset, SourceJson, ImportedAt, ...rest } = o;
+  const rest = Object.fromEntries(Object.entries(o).filter(([key]) => !/^(password|passwordhash|requirespasswordreset|sourcejson|importedat)$/i.test(key)));
   return { ...rest, id: o.Id || o.id || o.uid, uid: o.Id || o.id || o.uid };
 }
 function record(row: any, col: string) {
