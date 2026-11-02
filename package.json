@@ -12,7 +12,8 @@
     "sql:check": "node --import tsx scripts/sql-admin.ts check",
     "sql:password": "node --import tsx scripts/sql-admin.ts password",
     "test:sql": "node --import tsx --test tests/sql-*.test.ts",
-    "start": "tsx server.ts"
+    "start": "tsx server.ts",
+    "package:windows": "node scripts/build-windows.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

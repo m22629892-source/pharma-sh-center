@@ -13,3 +13,5 @@ sqlserver/*backup*.json
 sqlserver/02_import*.sql
 sqlserver/export-tools/
 sqlserver/__pycache__/
+
+release/
