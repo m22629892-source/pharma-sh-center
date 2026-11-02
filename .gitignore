@@ -8,3 +8,8 @@ bun.lock
 bun.lockb
 .env*
 !.env.example
+.sessions_cache.json
+sqlserver/*backup*.json
+sqlserver/02_import*.sql
+sqlserver/export-tools/
+sqlserver/__pycache__/

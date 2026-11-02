@@ -1,3 +1,4 @@
+import { isSQL } from './db/sqlClient';
 import React, { useEffect, useState } from 'react';
 import { WifiOff } from 'lucide-react';
 
@@ -26,7 +27,7 @@ export const OfflineIndicator: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang }) => 
   const isOnline = useOnlineStatus();
   const currentLang = lang || (typeof localStorage !== 'undefined' && localStorage.getItem('app_lang') === 'en' ? 'en' : 'ar');
 
-  if (isOnline) return null;
+  if (isOnline || isSQL) return null;
 
   return (
     <div 

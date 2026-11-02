@@ -11,6 +11,7 @@ let auth: any;
 let isFirebaseConnected = false;
 
 try {
+  if (import.meta.env.VITE_DATA_BACKEND === 'sqlserver') throw new Error('Firebase disabled in SQL mode');
   // Silence SDK connection retry warnings in console (Firestore seamlessly uses offline cache)
   setLogLevel('silent');
   
@@ -35,7 +36,7 @@ try {
   };
   testConnection().catch(() => {});
 } catch (error) {
-  console.error("Firebase initialization failed. Falling back to local offline storage:", error);
+  if (import.meta.env.VITE_DATA_BACKEND !== 'sqlserver') console.error("Firebase initialization failed:", error);
   isFirebaseConnected = false;
 }
 

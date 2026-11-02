@@ -1,3 +1,4 @@
+import { isSQL, sqlLogin, sqlMe, sqlPassword } from './db/sqlClient';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, Edit2, Trash2, Calendar, DollarSign, Package, Activity, AlertTriangle, 
@@ -728,6 +729,9 @@ export const generateReferralAlertsReports = (residentsList: any[]) => {
 };
 
 export default function App() {
+  const sqlAuthVersion = useRef(0);
+  const [sqlConnected, setSqlConnected] = useState(false);
+  const databaseConnected = isSQL ? sqlConnected : isFirebaseConnected;
   // Global State
   const [medicines, setMedicines] = useState<Medicine[]>(() => getLocalMedicines());
   const [dispenseRecords, setDispenseRecords] = useState<DispenseRecord[]>(() => getLocalDispenses());
@@ -868,6 +872,7 @@ export default function App() {
 
   // User Accounts State with localStorage persistence
   const [users, setUsers] = useState<any[]>(() => {
+    if (isSQL) return [];
     const defaultUsers = [
       {
         uid: "user-tmrbe",
@@ -937,6 +942,17 @@ export default function App() {
   });
 
   const updateResidentsList = async (newList: any[]) => {
+    if (isSQL) {
+      try {
+        // Send only changed residents, avoiding stale overwrites of unrelated records.
+        for (const row of newList) {
+          const old = residents.find(r => r.id === row.id);
+          if (JSON.stringify(old) !== JSON.stringify(row)) await DbService.saveResident(row);
+        }
+        setResidents(await DbService.fetchResidents());
+        return;
+      } catch (error: any) { showToast(error.message, 'error'); throw error; }
+    }
     setResidents(newList);
     saveLocalResidents(newList);
     try {
@@ -948,11 +964,12 @@ export default function App() {
 
   const updateUsersList = (newList: any[]) => {
     setUsers(newList);
-    localStorage.setItem('care_pharmacy_all_users', JSON.stringify(newList));
+    if (!isSQL) localStorage.setItem('care_pharmacy_all_users', JSON.stringify(newList));
   };
   
   // Security & Authentication State
   const [currentUser, setCurrentUser] = useState<any | null>(() => {
+    if (isSQL) return null;
     try {
       const saved = localStorage.getItem('care_pharmacy_user');
       if (saved) {
@@ -1101,6 +1118,7 @@ export default function App() {
 
   // WhatsApp UltraMsg & Email Settings State with localStorage persistence
   const [whatsAppEnabled, setWhatsAppEnabled] = useState(() => {
+    if (isSQL) return false;
     return localStorage.getItem('whatsAppEnabled') !== 'false';
   });
   const [whatsAppMode, setWhatsAppMode] = useState<'ultramsg' | 'callmebot' | 'manual' | 'wapilot'>(() => {
@@ -1137,6 +1155,7 @@ export default function App() {
     return getLocalSecuritySettings().whatsAppNumber || '966502792157+, 201111256095';
   });
   const [emailEnabled, setEmailEnabled] = useState(() => {
+    if (isSQL) return false;
     return getLocalSecuritySettings().emailEnabled !== false;
   });
   const [appsScriptUrl, setAppsScriptUrl] = useState(() => {
@@ -2299,6 +2318,12 @@ export default function App() {
   });
 
   const updateBehaviorLogs = async (newList: any[]) => {
+    if (isSQL) {
+      const changed = newList.filter(row => JSON.stringify(behaviorLogs.find(old => old.id === row.id)) !== JSON.stringify(row));
+      await DbService.syncAllBehaviorLogs(changed);
+      setBehaviorLogs(await DbService.fetchBehaviorLogs());
+      return;
+    }
     setBehaviorLogs(newList);
     saveLocalBehaviorLogs(newList);
     try {
@@ -2395,6 +2420,34 @@ export default function App() {
 
   // Load Data with Instant Cache and Parallel Background Cloud Sync
   const loadAllData = async () => {
+    if (isSQL) {
+      if (!currentUser) { setLoading(false); return; }
+      const authVersion = sqlAuthVersion.current;
+      setLoading(true);
+      try {
+        const manager = ['admin', 'developer'].includes(currentUser.role);
+        const [meds, disp, people, docs, comps, behavior, effects, units, cats, logs, sec, accounts, sessions] = await Promise.all([
+          DbService.fetchMedicines(), DbService.fetchDispenseRecords(), DbService.fetchResidents(),
+          DbService.fetchDoctors(), DbService.fetchCompanies(), DbService.fetchBehaviorLogs(),
+          DbService.fetchCustomSideEffects(), DbService.fetchUnits(), DbService.fetchCategories(),
+          DbService.fetchStockLogs(), DbService.fetchSecuritySettings(),
+          manager ? DbService.fetchUsers() : Promise.resolve([]),
+          manager ? DbService.fetchSessions() : Promise.resolve([])
+        ]);
+        if (authVersion !== sqlAuthVersion.current) return;
+        setSqlConnected(true); setMedicines(meds); setDispenseRecords(disp); setResidents(people); setDoctors(docs);
+        setCompanies(comps); setBehaviorLogs(behavior); setCustomSideEffects(effects);
+        setCustomUnits(units); setCustomCategories(cats); setStockLogs(logs); setUsers(accounts); setSessions(sessions);
+        setSecSettingsState(sec); setEmailEnabled(Boolean(sec.emailEnabled)); setWhatsAppEnabled(Boolean(sec.whatsAppEnabled));
+        setAppsScriptUrl(sec.appsScriptUrl || ''); setNotificationEmail(sec.notificationEmail || '');
+        setWhatsAppMode((sec.whatsAppMode || 'manual') as any); setWhatsAppNumber(sec.whatsAppNumber || '');
+        setCallMeBotApiKey(sec.callMeBotApiKey || ''); setUltraMsgInstance(sec.ultraMsgInstance || ''); setUltraMsgToken(sec.ultraMsgToken || '');
+        setWaPilotBaseUrl(sec.waPilotBaseUrl || ''); setWaPilotApiKey(sec.waPilotApiKey || '');
+        setWaPilotType((sec.waPilotType || 'personal') as any); setWaPilotDevice(sec.waPilotDevice || ''); setWaPilotPath(sec.waPilotPath || '');
+      } catch (error: any) { setSqlConnected(false); showToast(error.message, 'error'); throw error; }
+      finally { setLoading(false); }
+      return;
+    }
     // 1. Instant optimistic population from local storage (Zero wait time)
     const localMeds = getLocalMedicines();
     const localDisp = getLocalDispenses();
@@ -2547,6 +2600,24 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (!isSQL) return;
+    const end = () => {
+      sqlAuthVersion.current++;
+      setSqlConnected(false); setCurrentUser(null); setMedicines([]); setResidents([]); setUsers([]); setDispenseRecords([]);
+      setDoctors([]); setStockLogs([]); setSessions([]); setCompanies([]); setBehaviorLogs([]);
+      setActiveDossierResident(null);
+    };
+    window.addEventListener('sql-session-ended', end);
+    let stopped = false;
+    const version = sqlAuthVersion.current;
+    sqlMe(true).then(u => { if (!stopped && version === sqlAuthVersion.current) setCurrentUser(u); }).catch(() => {});
+    return () => { stopped = true; window.removeEventListener('sql-session-ended', end); };
+  }, []);
+  useEffect(() => {
+    if (isSQL && currentUser) loadAllData().catch(() => {});
+  }, [currentUser?.uid]);
+
   // Universal Database Cloud Sync Handler (Accessible to ALL users across the entire system)
   const [isSyncingDb, setIsSyncingDb] = useState<boolean>(false);
   const handleManualSyncDb = async () => {
@@ -2573,6 +2644,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (isSQL) { setLoading(false); return; }
     loadAllData();
 
     // 2. Silent Daily Auto-Pilot Resident Referral Alerts Dispatch (1-Day Prior Notice to Pharmacy Officials)
@@ -2690,7 +2762,7 @@ export default function App() {
     };
 
     setCurrentUser(sessionUser);
-    if (rememberMe) {
+    if (!isSQL && rememberMe) {
       localStorage.setItem('care_pharmacy_user', JSON.stringify(sessionUser));
     } else {
       localStorage.removeItem('care_pharmacy_user');
@@ -2722,6 +2794,13 @@ export default function App() {
     setIsLoggingIn(true);
     try {
       const cleanEmail = loginEmail.trim().toLowerCase();
+      if (isSQL) {
+        try {
+          const user = await sqlLogin(cleanEmail, loginPassword, rememberMe);
+          sqlAuthVersion.current++; completeUserLogin(user); setLoginPassword('');
+        } catch (error: any) { showToast(error.message, 'error'); }
+        return;
+      }
       
       // 1. Fetch current users, refreshing from DbService if user is missing or password mismatch to guarantee checking the live database
       let currentUsersList = [...users];
@@ -2891,8 +2970,9 @@ export default function App() {
 
   // Logout handler with active session cleanup
   const handleLogout = () => {
+    if (isSQL) window.dispatchEvent(new Event('sql-session-ended'));
     if (currentUser?.email) {
-      DbService.releaseActiveSession(currentUser.email, activeSessionId);
+      DbService.releaseActiveSession(currentUser.email, activeSessionId).catch(error => showToast(error.message, 'error'));
       try {
         const bus = new BroadcastChannel('care_pharmacy_session_bus');
         bus.postMessage({
@@ -3028,6 +3108,17 @@ export default function App() {
       return;
     }
 
+    if (isSQL) {
+      try {
+        await sqlPassword(currentPassword, newPassword);
+        setShowChangePasswordModal(false); setCurrentUser(null);
+        showToast('تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.', 'success');
+      } catch (error: any) {
+        setPasswordForm(prev => ({ ...prev, error: error.message }));
+      } finally { setPasswordForm(prev => ({ ...prev, isSubmitting: false })); }
+      return;
+    }
+
     // 2. Verify current password strictly against database record
     let userInDb = users.find(u => u.uid === currentUser.uid || u.email?.toLowerCase() === currentUser.email?.toLowerCase());
     if (!userInDb || userInDb.password !== currentPassword) {
@@ -3100,7 +3191,7 @@ export default function App() {
   };
 
   // Add Behavior Log Handler
-  const handleAddBehaviorLog = (e: React.FormEvent) => {
+  const handleAddBehaviorLog = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (!behaviorForm.residentId) {
@@ -3138,7 +3229,7 @@ export default function App() {
           }
           return log;
         });
-        updateBehaviorLogs(updatedLogs);
+        await updateBehaviorLogs(updatedLogs);
         setShowAddBehaviorModal(false);
         setSelectedBehaviorLogId(null);
         showToast(text(`تم تعديل الملاحظة السلوكية بنجاح للمستفيد: ${res.name}`, `Behavioral observation updated successfully for: ${res.name}`), 'success');
@@ -3159,7 +3250,7 @@ export default function App() {
         };
 
         const updated = [newLog, ...behaviorLogs];
-        updateBehaviorLogs(updated);
+        await updateBehaviorLogs(updated);
         setShowAddBehaviorModal(false);
         showToast(text(`تم تسجيل الملاحظة السلوكية بنجاح للمستفيد: ${res.name}`, `Behavioral observation logged successfully for: ${res.name}`), 'success');
       }
@@ -4884,6 +4975,7 @@ export default function App() {
 
       // 5. Create official dispense record (this automatically deducts from inventory & logs stock audit in DbService)
       const record = await DbService.addDispenseRecord({
+        ...(isSQL ? { doseId } : {}),
         medicineId: med.id,
         medicineName: med.commercialName,
         medicineNameEn: med.commercialNameEn || med.scientificName || '',
@@ -4941,7 +5033,7 @@ export default function App() {
       saveLocalResidents(updatedResidents);
 
       // Non-blocking sync for only this single resident to Firestore (prevents 146 bulk writes)
-      if (targetResidentToSync) {
+      if (targetResidentToSync && !isSQL) {
         DbService.syncSingleResident(targetResidentToSync).catch(() => {});
       }
 
@@ -4966,7 +5058,7 @@ export default function App() {
     dispenseDoseAutomatically(residentId, doseId);
   };
 
-  const addDoseToResidentSchedule = (residentId: string) => {
+  const addDoseToResidentSchedule = async (residentId: string) => {
     if (!newDoseForm.medicineId || !newDoseForm.dosage) {
       showToast(lang === 'ar' ? "يرجى اختيار الدواء وتحديد الجرعة المطلوبة." : "Please select medication and specify dosage.", "error");
       return;
@@ -4995,20 +5087,20 @@ export default function App() {
       }
       return r;
     });
-    updateResidentsList(updatedResidents);
+    await updateResidentsList(updatedResidents);
     setNewDoseForm({ timeSlot: '08:00', medicineId: '', dosage: '', quantity: 1 });
     setDoseMedSearch('');
     showToast(lang === 'ar' ? `تمت جدولة الجرعة (${parsedQty} ${targetMed.unit || 'حبة'}) بنجاح في القائمة 💊` : `Medication dose scheduled successfully (${parsedQty} unit) 💊`, "success");
   };
 
-  const handleUpdateDossierReferralDate = (residentId: string, newReferralDate: string) => {
+  const handleUpdateDossierReferralDate = async (residentId: string, newReferralDate: string) => {
     const updatedResidents = residents.map(r => {
       if (r.id === residentId) {
         return { ...r, referralDate: newReferralDate };
       }
       return r;
     });
-    updateResidentsList(updatedResidents);
+    await updateResidentsList(updatedResidents);
     const target = updatedResidents.find(r => r.id === residentId);
     if (target) {
       setActiveDossierResident(target);
@@ -5016,7 +5108,7 @@ export default function App() {
     showToast(lang === 'ar' ? "تم تحديث تاريخ الإحالة (Refill Date) بنجاح 📅" : "Refill date updated successfully 📅", "success");
   };
 
-  const removeDoseFromResidentSchedule = (residentId: string, doseId: string) => {
+  const removeDoseFromResidentSchedule = async (residentId: string, doseId: string) => {
     const updatedResidents = residents.map(r => {
       if (r.id === residentId) {
         const sched = r.dosageSchedule || [];
@@ -5027,7 +5119,7 @@ export default function App() {
       }
       return r;
     });
-    updateResidentsList(updatedResidents);
+    await updateResidentsList(updatedResidents);
     showToast("تم إزالة الجرعة المجدولة.", "success");
   };
 
@@ -9473,7 +9565,7 @@ export default function App() {
                   {/* Save Button for System Administrator */}
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
                     <div className="text-[11px] text-slate-500 font-medium">
-                      {text('يتم حفظ التعديلات فورياً في قاعدة البيانات السحابية (Firebase Cloud).', 'Changes are saved immediately to Firebase Cloud Database.')}
+                      {text('يتم حفظ التعديلات في قاعدة البيانات المتصلة.', 'Changes are saved in the connected database.')}
                     </div>
 
                     <button
@@ -9658,18 +9750,18 @@ export default function App() {
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                          {text('حالة قاعدة بيانات Firebase السحابية (Cloud Firestore)', 'Cloud Firebase Database Status (Cloud Firestore)')}
+                          {isSQL ? text('حالة اتصال SQL Server المحلي', 'Local SQL Server connection') : text('حالة قاعدة بيانات Firebase السحابية (Cloud Firestore)', 'Cloud Firebase Database Status (Cloud Firestore)')}
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1.5 ${
-                            isFirebaseConnected 
+                            databaseConnected
                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
                               : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                           }`}>
-                            <span className={`w-2 h-2 rounded-full ${isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-                            {isFirebaseConnected ? text('متصلة ومفعلة بالسحابة 🟢', 'Live & Connected 🟢') : text('تخزين محلي احتياطي ⚠️', 'Local Fallback ⚠️')}
+                            <span className={`w-2 h-2 rounded-full ${databaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                            {databaseConnected ? text('متصلة 🟢', 'Connected 🟢') : text('الاتصال غير مؤكد ⚠️', 'Connection not confirmed ⚠️')}
                           </span>
                         </h3>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          {text('تم ربط مخزن الصيدلية وسجلات الصرف وعمليات التدقيق مباشرة مع مشروع Firebase المعتمد.', 'Pharmacy inventory, dispense records, and audit logs are connected directly with the active Firebase project.')}
+                          {isSQL ? text('البيانات محفوظة على SQL Server عبر الخادم المحلي.', 'Data is stored in SQL Server through the local backend.') : text('تم ربط البيانات بمشروع Firebase المعتمد.', 'Data is connected to the Firebase project.')}
                         </p>
                       </div>
                     </div>
@@ -9682,7 +9774,7 @@ export default function App() {
                         className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0 hover:scale-105 active:scale-95 disabled:opacity-50"
                       >
                         <RefreshCw className={`w-4 h-4 ${isSyncingDb ? 'animate-spin' : ''}`} />
-                        <span>{text('مزامنة سحابية الآن 🔄', 'Sync with Cloud Now 🔄')}</span>
+                        <span>{text('تحديث البيانات 🔄', 'Refresh data 🔄')}</span>
                       </button>
 
                       {/* Developer Only: Backup and Restore Buttons */}
@@ -10900,7 +10992,7 @@ export default function App() {
                         <RefreshCw className={`w-3.5 h-3.5 ${savingSecSettings ? 'animate-spin' : 'animate-spin-slow'}`} />
                         <span>
                           {savingSecSettings 
-                            ? text('جاري الحفظ في قاعدة بيانات Firebase...', 'Saving to Firebase Cloud DB...')
+                            ? text('جاري الحفظ في قاعدة البيانات...', 'Saving to database...')
                             : text('حفظ الإعدادات في قاعدة البيانات 💾', 'Save Settings to Database 💾')}
                         </span>
                       </button>
@@ -10929,7 +11021,7 @@ export default function App() {
                 text={text}
                 showToast={showToast}
                 currentUser={currentUser}
-                isFirebaseConnected={isFirebaseConnected}
+                isFirebaseConnected={databaseConnected}
                 firebaseProjectId={firebaseConfig.projectId}
                 onRefreshData={loadAllData}
                 onExportBackup={handleExportBackup}
@@ -12418,7 +12510,7 @@ export default function App() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (currentUser?.role === 'technician') {
                       showToast(text('ليس لديك صلاحية لإضافة مستفيدين (صلاحيات فني صيدلة).', 'Pharmacy technicians are not permitted to register residents.'), 'error');
@@ -12439,7 +12531,7 @@ export default function App() {
                       nameEn: primaryEn,
                       age: computedAge
                     };
-                    updateResidentsList([...residents, newRes]);
+                    await updateResidentsList([...residents, newRes]);
                     setShowAddResidentModal(false);
                     showToast(text(`تم تسجيل المستفيد الجديد "${newRes.name}" بنجاح!`, `Resident "${newRes.nameEn || newRes.name}" added successfully!`), 'success');
                   }} className="space-y-4 text-xs">
@@ -12623,7 +12715,7 @@ export default function App() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (currentUser?.role === 'technician') {
                       showToast(text('ليس لديك صلاحية لتعديل بيانات المستفيدين (صلاحيات فني صيدلة).', 'Pharmacy technicians are not permitted to edit resident profiles.'), 'error');
@@ -12645,7 +12737,7 @@ export default function App() {
                       nameEn: primaryEn,
                       age: computedAge 
                     } : r);
-                    updateResidentsList(updated);
+                    await updateResidentsList(updated);
                     const target = updated.find(r => r.id === selectedResidentId);
                     if (target && activeDossierResident?.id === selectedResidentId) {
                       setActiveDossierResident(target);
@@ -12828,7 +12920,7 @@ export default function App() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (!userForm.name || !userForm.email || !userForm.password) {
                       showToast(text('يرجى ملء حقول الاسم والبريد الإلكتروني وكلمة المرور', 'Please fill in name, email, and password fields'), 'error');
@@ -12846,8 +12938,9 @@ export default function App() {
                       uid: "user-" + Math.random().toString(36).substr(2, 9),
                       ...userForm
                     };
-                    DbService.addUser(newUser);
-                    updateUsersList([...users, newUser]);
+                    const savedUser = await DbService.addUser(newUser).catch(error => { showToast(error.message, 'error'); return null; });
+                    if (!savedUser) return;
+                    updateUsersList([...users, isSQL ? savedUser : newUser]);
                     setShowAddUserModal(false);
                     showToast(text(`تم إنشاء حساب المستخدم "${newUser.name}" بنجاح!`, `User account "${newUser.name}" created successfully!`), 'success');
                   }} className="space-y-4 text-xs">
@@ -12938,7 +13031,7 @@ export default function App() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (!selectedUserId) return;
                     if (userForm.role === 'developer' && currentUser?.role !== 'developer') {
@@ -12946,8 +13039,9 @@ export default function App() {
                       return;
                     }
                     const updatedUser = { uid: selectedUserId, ...userForm };
-                    DbService.updateUser(updatedUser);
-                    const updated = users.map(u => u.uid === selectedUserId ? { ...u, ...userForm } : u);
+                    const savedUser = await DbService.updateUser(updatedUser).catch(error => { showToast(error.message, 'error'); return null; });
+                    if (!savedUser) return;
+                    const updated = users.map(u => u.uid === selectedUserId ? (isSQL ? savedUser : { ...u, ...userForm }) : u);
                     updateUsersList(updated);
                     setShowEditUserModal(false);
                     showToast(text('تم تعديل بيانات المستخدم بنجاح.', 'User details updated successfully.'), 'success');
@@ -13241,7 +13335,7 @@ export default function App() {
                             <span>{text("إضافة وجدولة دواء جديد في القائمة اليومية", "Schedule New Dose in Daily Plan")}</span>
                           </h4>
 
-                          <form onSubmit={(e) => {
+                          <form onSubmit={async (e) => {
                             e.preventDefault();
                             addDoseToResidentSchedule(activeDossierResident.id);
                           }} className="space-y-3">
@@ -13850,7 +13944,7 @@ export default function App() {
 
                   {/* Modal Body Form */}
                   <form 
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
                       const updatedResident = {
                         ...activeDossierResident,
@@ -13865,7 +13959,7 @@ export default function App() {
                       };
 
                       const updatedResidents = residents.map(r => r.id === activeDossierResident.id ? updatedResident : r);
-                      updateResidentsList(updatedResidents);
+                      await updateResidentsList(updatedResidents);
                       setActiveDossierResident(updatedResident);
                       setShowEditMedicalDossierModal(false);
                       showToast(text('تم حفظ وتحديث بيانات الملف الطبي الشامل للمريض بنجاح! 🩺📋', 'Clinical medical file updated successfully!'), 'success');

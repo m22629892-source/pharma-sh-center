@@ -1,3 +1,4 @@
+import { isSQL, SqlDbService } from './sqlClient';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc, query, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConnected } from '../firebase';
 
@@ -408,6 +409,7 @@ const INITIAL_DISPENSES: DispenseRecord[] = [
 ];
 
 export const getLocalMedicines = (): Medicine[] => {
+  if (isSQL) return [];
   const data = localStorage.getItem('care_pharmacy_medicines');
   if (data === null) {
     // In production with Firebase or after clearing, never re-seed fake sample medicines
@@ -422,10 +424,12 @@ export const getLocalMedicines = (): Medicine[] => {
 };
 
 export const saveLocalMedicines = (medicines: Medicine[]) => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_medicines', JSON.stringify(medicines));
 };
 
 export const getLocalDispenses = (): DispenseRecord[] => {
+  if (isSQL) return [];
   const data = localStorage.getItem('care_pharmacy_dispenses');
   if (!data) {
     return [];
@@ -439,15 +443,18 @@ export const getLocalDispenses = (): DispenseRecord[] => {
 };
 
 export const saveLocalDispenses = (dispenses: DispenseRecord[]) => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_dispenses', JSON.stringify(dispenses));
 };
 
 export const getLocalSessions = (): UserSession[] => {
+  if (isSQL) return [];
   const data = localStorage.getItem('care_pharmacy_sessions');
   return data ? JSON.parse(data) : [];
 };
 
 export const saveLocalSessions = (sessions: UserSession[]) => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_sessions', JSON.stringify(sessions));
 };
 
@@ -511,6 +518,7 @@ const INITIAL_STOCK_LOGS: StockAuditLog[] = [
 ];
 
 export const getLocalStockLogs = (): StockAuditLog[] => {
+  if (isSQL) return [];
   const data = localStorage.getItem('care_pharmacy_stock_logs');
   if (!data) {
     return [];
@@ -530,10 +538,12 @@ export const getLocalStockLogs = (): StockAuditLog[] => {
 };
 
 export const saveLocalStockLogs = (logs: StockAuditLog[]) => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_stock_logs', JSON.stringify(logs));
 };
 
 export const getLocalSecuritySettings = (): SecuritySettings => {
+  if (isSQL) return { ...DEFAULT_SECURITY_SETTINGS, emailEnabled: false, whatsAppEnabled: false, appsScriptUrl: '', notificationEmail: '', whatsAppNumber: '' };
   const localAlertDays = localStorage.getItem('care_pharmacy_alert_days');
   const data = localStorage.getItem('care_pharmacy_security_settings');
   let result = { ...DEFAULT_SECURITY_SETTINGS };
@@ -549,6 +559,7 @@ export const getLocalSecuritySettings = (): SecuritySettings => {
 };
 
 export const saveLocalSecuritySettings = (settings: SecuritySettings) => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_security_settings', JSON.stringify(settings));
   // Keep legacy individual keys in sync for backward compatibility
   localStorage.setItem('emailEnabled', String(settings.emailEnabled));
@@ -615,20 +626,24 @@ export const isMedicalSuppliesCategory = (categoryName?: string): boolean => {
 };
 
 export const getLocalUnits = (): string[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_custom_units');
   return saved ? JSON.parse(saved) : DEFAULT_UNITS;
 };
 
 export const saveLocalUnits = (units: string[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_custom_units', JSON.stringify(units));
 };
 
 export const getLocalCategories = (): string[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_custom_categories');
   return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
 };
 
 export const saveLocalCategories = (categories: string[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_custom_categories', JSON.stringify(categories));
 };
 
@@ -676,11 +691,13 @@ export const DEFAULT_DOCTORS: Doctor[] = [
 ];
 
 export const getLocalDoctors = (): Doctor[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_doctors');
   return saved ? JSON.parse(saved) : DEFAULT_DOCTORS;
 };
 
 export const saveLocalDoctors = (doctors: Doctor[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_doctors', JSON.stringify(doctors));
 };
 
@@ -859,6 +876,7 @@ export const INITIAL_CUSTOM_SIDE_EFFECTS = [
 ];
 
 export const getLocalResidents = (): any[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_residents');
   if (saved === null) {
     if (localStorage.getItem('care_pharmacy_seeded')) return [];
@@ -873,10 +891,12 @@ export const getLocalResidents = (): any[] => {
 };
 
 export const saveLocalResidents = (residents: any[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_residents', JSON.stringify(residents));
 };
 
 export const getLocalCompanies = (): any[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_companies');
   if (saved === null) {
     if (localStorage.getItem('care_pharmacy_seeded')) return [];
@@ -891,10 +911,12 @@ export const getLocalCompanies = (): any[] => {
 };
 
 export const saveLocalCompanies = (companies: any[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_companies', JSON.stringify(companies));
 };
 
 export const getLocalBehaviorLogs = (): any[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_behavior_logs');
   if (saved === null) {
     if (localStorage.getItem('care_pharmacy_seeded')) return [];
@@ -909,19 +931,23 @@ export const getLocalBehaviorLogs = (): any[] => {
 };
 
 export const saveLocalBehaviorLogs = (logs: any[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_behavior_logs', JSON.stringify(logs));
 };
 
 export const getLocalCustomSideEffects = (): { key: string; label: string }[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_custom_side_effects');
   return saved ? JSON.parse(saved) : INITIAL_CUSTOM_SIDE_EFFECTS;
 };
 
 export const saveLocalCustomSideEffects = (effects: { key: string; label: string }[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_custom_side_effects', JSON.stringify(effects));
 };
 
 export const getLocalBatches = (): any[] => {
+  if (isSQL) return [];
   const saved = localStorage.getItem('care_pharmacy_batches');
   if (!saved) return [];
   try {
@@ -933,6 +959,7 @@ export const getLocalBatches = (): any[] => {
 };
 
 export const saveLocalBatches = (batches: any[]): void => {
+  if (isSQL) return;
   localStorage.setItem('care_pharmacy_batches', JSON.stringify(batches));
 };
 
@@ -955,7 +982,7 @@ export const withTimeout = <T>(promise: Promise<T>, ms: number = 10000): Promise
 };
 
 // Unified CRUD Service with Firebase support and clean LocalStorage fallback
-export const DbService = {
+const FirebaseDbService = {
   // --- Medicines CRUD ---
   async fetchMedicines(): Promise<Medicine[]> {
     try {
@@ -2947,3 +2974,5 @@ export const DbService = {
     };
   }
 };
+
+export const DbService: typeof FirebaseDbService = isSQL ? SqlDbService as typeof FirebaseDbService : FirebaseDbService;
